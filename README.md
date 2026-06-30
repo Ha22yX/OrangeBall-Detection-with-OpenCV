@@ -1,38 +1,135 @@
-## OrangeBall-Detection-with-OpenCV
+# OrangeBall Detection with OpenCV
 
-简单的 OpenCV 程序：打开摄像头，提取画面里的橙色区域，并检测“接近圆形”的目标（用于橙色高尔夫球）。已内置抗高光/阴影与 LAB 拾色增强。
+[中文说明](README.zh-CN.md)
 
-### 安装
-```bash
-pip install opencv-python numpy
+OrangeBall Detection with OpenCV is a camera-based orange golf ball detection system built for a Wardlaw Hartridge School Robotics Club team robot. The goal is to help the robot see where the ball is in the camera frame, so the robot can align, move toward the ball, and use that visual cue to support scoring behavior.
+
+The project uses OpenCV color segmentation and circle-like shape validation. The main detector includes live GUI controls for HSV thresholds, LAB color picking, morphology, lighting tolerance, and detection toggles, making it easier to tune the robot vision pipeline under different classroom, lab, or competition lighting conditions.
+
+## Project Goals
+
+- Detect orange golf balls from a live camera feed.
+- Estimate the ball position in image coordinates for robot movement decisions.
+- Tune color thresholds interactively instead of recompiling or editing constants repeatedly.
+- Handle highlights and shadows on glossy orange balls using HSV and optional LAB color distance.
+- Reject non-ball orange regions by checking circularity, fill ratio, and bounding-box shape.
+- Keep older detector experiments available for comparison and future tuning.
+
+## Repository Structure
+
+```text
+src/
+  orange_detector.py          Recommended live detector with GUI controls.
+
+experiments/
+  golf_ball_detector_gui.py   More advanced GUI experiment with snapshot annotation.
+  golf_ball_detector_grass.py Orange-ball-on-grass detector experiment.
+  golf_ball_detector_color.py Color-focused detector experiment.
+  circle_detector_bw.py       Black/white circle detector experiment.
+
+requirements.txt             Python dependencies.
+README.md                    English documentation.
+README.zh-CN.md              Chinese documentation.
 ```
 
-### 运行
+## Main Detector
+
+Run:
+
 ```bash
-python3 orange_detector.py
+python src/orange_detector.py
 ```
 
-### 快速使用（推荐顺序）
-1) 打开程序后，窗口会出现三个画面：Original / Mask / Result (In-Range) 以及一个 Controls 控制窗口。  
-2) 在 Controls 中，默认参数已适配常见橙色球：
-   - H center=7, H width=2, S min=180, V min=215
-   - Morph=1, Light tol=2, Use LAB=1, Detect=1
-3) 开启 Pick mode（或按 p），在 Original 窗口“左键点击”球面（选中等亮的区域）进行拾色；若用 Shift+左键也可拾色。  
-4) 观察 Mask/Result 是否把球完整连成一块：
-   - 如果球碎裂：增大 Light tol（2→3），或把 DE tol 从 25 调大到 30-40（Use LAB=1）。
-   - 如果背景进来太多：适当减小 H width，或提高 S min / V min。  
-5) 打开 Detect=1，会在 Result 里给接近圆的区域画框与分数。  
-6) 退出：按 q 或 ESC。
+The program opens a camera feed and displays:
 
-### 控件说明（Controls）
-- H center / H width：色相中心与半宽度（范围 = center ± width）
-- S min / V min：最小饱和度 / 最小亮度（上限固定 255）
-- Morph (0-5)：形态学降噪（0 关闭）
-- Light tol (0-3)：对高光/阴影的容忍度（越大越容易连成整球）
-- Use LAB (0/1) + DE tol (10-50)：基于 LAB ΔE 的拾色增强，越大越宽容
-- Pick mode (0/1)：拾色模式（开后直接左键点击即可拾色；mac 触摸板建议开启）
-- Detect (0/1)：开启/关闭圆形检测与标注
+- `Original`: live camera image.
+- `Mask`: binary mask for the selected orange range.
+- `Result`: annotated output with detected circle-like regions.
+- `Controls`: sliders for threshold and detection tuning.
 
-### 性能/调参小贴士
-- 调阈值时可临时把 Detect 设为 0，只看 Mask/Result，不卡后再打开。
-- 若仍卡顿，降低 Morph；程序会尝试将摄像头分辨率设置为 640×480。*** End Patch*** End Patch }```  }``` md code fence? The tool expects patch only. The above content ends with *** End Patch twice; ensure format correct. We'll fix.
+Recommended starting parameters are already built into the script:
+
+```text
+H center = 7
+H width  = 2
+S min    = 180
+V min    = 215
+Morph    = 1
+Light tol = 2
+Use LAB  = 1
+Detect   = 1
+```
+
+## Installation
+
+Python 3.10+ is recommended.
+
+```bash
+python -m venv .venv
+
+# Windows
+.venv\Scripts\activate
+
+# macOS/Linux
+source .venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+## Camera Selection
+
+By default, the detector tries to open a camera automatically. You can force a camera index with:
+
+```bash
+# Windows PowerShell
+$env:CAM_INDEX="0"
+python src/orange_detector.py
+
+# macOS/Linux
+CAM_INDEX=0 python src/orange_detector.py
+```
+
+Some experiment scripts also support camera index discovery for Linux `/dev/video*` devices.
+
+## Controls
+
+- `H center` / `H width`: orange hue center and half-width in OpenCV HSV space.
+- `S min` / `V min`: minimum saturation and brightness.
+- `Morph`: morphology strength for noise cleanup.
+- `Light tol`: tolerance for highlights and shadows.
+- `Use LAB` / `DE tol`: optional LAB color-distance mask after picking a sample color.
+- `Pick mode`: when enabled, left-click the ball in `Original` to update the picked color.
+- `Detect`: enable or disable circle-like region detection.
+
+Shortcut keys:
+
+- `p`: toggle pick mode.
+- `q` or `Esc`: quit.
+
+## Tuning Workflow
+
+1. Start with `python src/orange_detector.py`.
+2. Put the orange golf ball in the robot camera view.
+3. If the mask misses part of the ball, enable `Pick mode` and click a well-lit area of the ball.
+4. If the ball appears fragmented, increase `Light tol`, `DE tol`, or `Morph`.
+5. If the background leaks into the mask, reduce `H width` or increase `S min` / `V min`.
+6. Temporarily set `Detect = 0` while tuning the mask, then turn it back on for shape validation.
+
+## Robot Integration Notes
+
+This project currently provides visual detection and image-space position. A robot controller can use the detected ball center as a steering signal:
+
+```text
+camera frame -> orange mask -> circle-like detection -> ball center (x, y) -> robot alignment/movement logic
+```
+
+A typical control strategy is:
+
+- If no ball is detected, rotate or scan.
+- If the ball center is left/right of the image center, turn toward it.
+- If the ball is centered, drive forward.
+- Use the detected radius or bounding-box size as a rough distance cue.
+
+## License
+
+No license file is currently included.
